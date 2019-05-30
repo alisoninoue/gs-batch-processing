@@ -9,6 +9,7 @@ import org.springframework.batch.core.configuration.annotation.EnableBatchProces
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
@@ -20,13 +21,17 @@ import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.client.RestTemplate;
 
 @Configuration
 @EnableBatchProcessing
 public class BatchConfiguration {
 
+    @Autowired
+    public Environment environment;
     @Autowired
     public JobBuilderFactory jobBuilderFactory;
 
@@ -74,13 +79,25 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public Step step1(JdbcBatchItemWriter<Person> writer) {
+    public Step step1(JdbcBatchItemWriter<Person> writer,
+                      ItemReader<Person> restStudentReader) {
         return stepBuilderFactory.get("step1")
-            .<Person, Person> chunk(10)
-            .reader(reader())
+            .<Person, Person> chunk(1)
+            .reader(restStudentReader)
             .processor(processor())
             .writer(writer)
             .build();
     }
     // end::jobstep[]
+
+    @Bean
+    ItemReader<Person> restStudentReader(Environment environment,
+                                         RestTemplate restTemplate) {
+        RestPersonReader restPersonReader = new RestPersonReader(
+                environment.getRequiredProperty("rest.url"),
+                restTemplate
+        );
+
+        return restPersonReader;
+    }
 }
